@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Patient Trial Score Explorer</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="topbar">
+        <div>
+          <h1>Patient Trial Score Explorer</h1>
+          <p id="datasetSummary">Loading scored trials</p>
+        </div>
+        <div class="controls">
+          <label>
+            <span>Patient</span>
+            <select id="patientSelect"></select>
+          </label>
+          <label>
+            <span>Score</span>
+            <select id="scoreModeSelect">
+              <option value="totalScore">Total</option>
+              <option value="noEligibilityScore">No eligibility</option>
+              <option value="riskBenefitScore">Risk + benefit</option>
+            </select>
+          </label>
+          <button id="clearFilterButton" type="button">Clear selection</button>
+        </div>
+      </header>
+
+      <section class="summary-row" aria-label="selected patient summary">
+        <div class="metric">
+          <span class="metric-label">Patient</span>
+          <strong id="patientMetric">-</strong>
+        </div>
+        <div class="metric">
+          <span class="metric-label">Trials</span>
+          <strong id="trialMetric">-</strong>
+        </div>
+        <div class="metric">
+          <span class="metric-label">Showing</span>
+          <strong id="showingMetric">-</strong>
+        </div>
+        <div class="metric wide">
+          <span class="metric-label">Selection</span>
+          <strong id="filterMetric">All trials</strong>
+          <button id="selectionAllButton" class="selection-all-button" type="button">All</button>
+        </div>
+      </section>
+
+      <section class="patient-note" aria-label="patient note">
+        <span class="patient-note-label">Patient note</span>
+        <p id="patientNoteText"></p>
+      </section>
+
+      <section class="histogram-panel" aria-label="score histogram">
+        <div class="section-heading">
+          <h2 id="histogramTitle">Score distribution</h2>
+        </div>
+        <div id="histogram" class="histogram"></div>
+      </section>
+
+      <section class="pies-section" aria-label="subdimension distributions">
+        <div class="section-heading">
+          <h2>Subdimension label distributions</h2>
+        </div>
+        <div id="pieGrid" class="pie-grid"></div>
+      </section>
+
+      <section class="trial-section" aria-label="selected trials">
+        <div class="section-heading">
+          <h2 id="trialListTitle">Trials</h2>
+        </div>
+        <div id="trialList" class="trial-list"></div>
+      </section>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>
