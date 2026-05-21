@@ -196,8 +196,8 @@ function renderHistogram(records) {
     return;
   }
 
-  for (const frac of [0, 0.25, 0.5, 0.75, 1]) {
-    const count = Math.round(maxCount * frac);
+  const yTickCounts = [...new Set([0, 0.25, 0.5, 0.75, 1].map((frac) => Math.round(maxCount * frac)))];
+  yTickCounts.forEach((count) => {
     const y = margin.top + plotH - (count / maxCount) * plotH;
     svg.appendChild(svgEl("line", {
       x1: margin.left,
@@ -214,7 +214,7 @@ function renderHistogram(records) {
       class: "bar-label",
       "font-size": "12",
     }));
-  }
+  });
 
   const slot = plotW / scores.length;
   const barW = Math.max(7, slot * 0.72);
