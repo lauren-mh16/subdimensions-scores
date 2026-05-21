@@ -2,7 +2,10 @@ const state = {
   data: null,
   selectedPatient: null,
   scoreMode: "totalScore",
-  filter: null,
+  filters: {
+    score: null,
+    labels: {},
+  },
 };
 
 const scoreModeLabels = {
@@ -76,57 +79,71 @@ function patientRecords() {
 }
 
 function filteredRecords(records) {
-  if (!state.filter) return records;
-  if (state.filter.type === "score") {
-    return records.filter((record) => record[state.scoreMode] === state.filter.score);
-  }
-  if (state.filter.type === "label") {
-    return records.filter(
-      (record) => record.labels[state.filter.dimension] === state.filter.label,
+  let visibleRecords = records;
+  if (state.filters.score !== null) {
+    visibleRecords = visibleRecords.filter(
+      (record) => record[state.scoreMode] === state.filters.score,
     );
   }
-  return records;
+  Object.entries(state.filters.labels).forEach(([dimension, label]) => {
+    visibleRecords = visibleRecords.filter((record) => record.labels[dimension] === label);
+  });
+  return visibleRecords;
 }
 
-function setFilter(nextFilter) {
-  if (
-    state.filter &&
-    nextFilter &&
-    JSON.stringify(state.filter) === JSON.stringify(nextFilter)
-  ) {
-    state.filter = null;
+function hasActiveFilters() {
+  return state.filters.score !== null || Object.keys(state.filters.labels).length > 0;
+}
+
+function toggleScoreFilter(score) {
+  if (state.filters.score === score) {
+    state.filters.score = null;
   } else {
-    state.filter = nextFilter;
+    state.filters.score = score;
+  }
+  render();
+}
+
+function toggleLabelFilter(dimension, label) {
+  if (state.filters.labels[dimension] === label) {
+    delete state.filters.labels[dimension];
+  } else {
+    state.filters.labels[dimension] = label;
   }
   render();
 }
 
 function clearFilter() {
-  state.filter = null;
+  state.filters = {
+    score: null,
+    labels: {},
+  };
   render();
 }
 
 function setPatient(queryId) {
   state.selectedPatient = queryId;
-  state.filter = null;
-  render();
+  clearFilter();
 }
 
 function setScoreMode(mode) {
   state.scoreMode = mode;
-  state.filter = null;
-  render();
+  clearFilter();
 }
 
 function activeFilterText() {
-  if (!state.filter) {
+  const parts = [];
+  if (state.filters.score !== null) {
+    parts.push(`${scoreModeLabels[state.scoreMode]} = ${state.filters.score}`);
+  }
+  Object.entries(state.filters.labels).forEach(([dimensionKey, label]) => {
+    const dim = state.data.dimensions.find((item) => item.key === dimensionKey);
+    parts.push(`${dim?.label || dimensionKey}: ${label}`);
+  });
+  if (!parts.length) {
     return state.scoreMode === "noEligibilityScore" ? "All non-ineligible trials" : "All trials";
   }
-  if (state.filter.type === "score") {
-    return `${scoreModeLabels[state.scoreMode]} = ${state.filter.score}`;
-  }
-  const dim = state.data.dimensions.find((item) => item.key === state.filter.dimension);
-  return `${dim.label}: ${state.filter.label}`;
+  return parts.join(" + ");
 }
 
 function renderSummary(records, visibleRecords) {
@@ -135,8 +152,8 @@ function renderSummary(records, visibleRecords) {
   trialMetric.textContent = String(records.length);
   showingMetric.textContent = String(visibleRecords.length);
   filterMetric.textContent = activeFilterText();
-  clearFilterButton.disabled = !state.filter;
-  selectionAllButton.hidden = !state.filter;
+  clearFilterButton.disabled = !hasActiveFilters();
+  selectionAllButton.hidden = !hasActiveFilters();
   histogramTitle.textContent = `${scoreModeLabels[state.scoreMode]} distribution`;
   trialListTitle.textContent = `Trials (${visibleRecords.length})`;
   datasetSummary.textContent = `${state.data.recordCount.toLocaleString()} scored trials across ${state.data.patientCount.toLocaleString()} patients`;
@@ -202,15 +219,15 @@ function renderHistogram(records) {
   const slot = plotW / scores.length;
   const barW = Math.max(7, slot * 0.72);
   scores.forEach((score, index) => {
-    const count = counts.get(score);
+    const count = counts.get(score) || 0;
     const x = margin.left + index * slot + (slot - barW) / 2;
     const barH = (count / maxCount) * plotH;
     const y = margin.top + plotH - barH;
     const group = svgEl("g", {
       class: [
         "bar-button",
-        state.filter?.type === "score" && state.filter.score === score ? "is-active" : "",
-        state.filter?.type === "score" && state.filter.score !== score ? "is-muted" : "",
+        state.filters.score === score ? "is-active" : "",
+        state.filters.score !== null && state.filters.score !== score ? "is-muted" : "",
       ].join(" ").trim(),
       role: "button",
       tabindex: "0",
@@ -238,11 +255,11 @@ function renderHistogram(records) {
       class: "bar-label",
       "font-size": "12",
     }));
-    group.addEventListener("click", () => setFilter({ type: "score", score }));
+    group.addEventListener("click", () => toggleScoreFilter(score));
     group.addEventListener("keydown", (event) => {
       if (event.key === "Enter" || event.key === " ") {
         event.preventDefault();
-        setFilter({ type: "score", score });
+        toggleScoreFilter(score);
       }
     });
     svg.appendChild(group);
@@ -325,10 +342,7 @@ function renderPies(records) {
       entries.forEach(([label, count], index) => {
         const end = start + (count / total) * Math.PI * 2;
         const color = palette[index % palette.length];
-        const isActive =
-          state.filter?.type === "label" &&
-          state.filter.dimension === dimension.key &&
-          state.filter.label === label;
+        const isActive = state.filters.labels[dimension.key] === label;
         const group = svgEl("g", {
           class: `slice-button${isActive ? " is-active" : ""}`,
           role: "button",
@@ -343,11 +357,11 @@ function renderPies(records) {
             fill: color,
           }));
         }
-        group.addEventListener("click", () => setFilter({ type: "label", dimension: dimension.key, label }));
+        group.addEventListener("click", () => toggleLabelFilter(dimension.key, label));
         group.addEventListener("keydown", (event) => {
           if (event.key === "Enter" || event.key === " ") {
             event.preventDefault();
-            setFilter({ type: "label", dimension: dimension.key, label });
+            toggleLabelFilter(dimension.key, label);
           }
         });
         svg.appendChild(group);
