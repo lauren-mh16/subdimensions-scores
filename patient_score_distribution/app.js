@@ -241,12 +241,14 @@ function renderHistogram(records) {
       height: barH.toFixed(2),
       rx: "3",
     }));
-    group.appendChild(textEl("text", String(count), {
-      x: (x + barW / 2).toFixed(2),
-      y: (Math.max(14, y - 6)).toFixed(2),
-      "text-anchor": "middle",
-      class: "bar-count",
-    }));
+    if (count > 0) {
+      group.appendChild(textEl("text", String(count), {
+        x: (x + barW / 2).toFixed(2),
+        y: (Math.max(14, y - 6)).toFixed(2),
+        "text-anchor": "middle",
+        class: "bar-count",
+      }));
+    }
     const labelY = margin.top + plotH + 24;
     group.appendChild(textEl("text", String(score), {
       x: (x + barW / 2).toFixed(2),
