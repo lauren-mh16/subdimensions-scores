@@ -99,12 +99,17 @@ function trialScopedRecords(records) {
 }
 
 function filteredRecords(records) {
-  let visibleRecords = records;
+  let visibleRecords = labelFilteredRecords(records);
   if (state.filters.score !== null) {
     visibleRecords = visibleRecords.filter(
       (record) => record[state.scoreMode] === state.filters.score,
     );
   }
+  return visibleRecords;
+}
+
+function labelFilteredRecords(records) {
+  let visibleRecords = records;
   Object.entries(state.filters.labels).forEach(([dimension, label]) => {
     visibleRecords = visibleRecords.filter((record) => record.labels[dimension] === label);
   });
@@ -539,9 +544,10 @@ function render() {
   const records = patientRecords();
   renderTrialFilters(records);
   const scopedRecords = trialScopedRecords(records);
+  const histogramRecords = labelFilteredRecords(scopedRecords);
   const visibleRecords = filteredRecords(scopedRecords);
   renderSummary(records, visibleRecords);
-  renderHistogram(scopedRecords);
+  renderHistogram(histogramRecords);
   renderPies(visibleRecords);
   renderTrialList(visibleRecords);
 }
