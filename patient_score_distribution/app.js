@@ -5,6 +5,8 @@ const state = {
   filters: {
     score: null,
     labels: {},
+    country: "",
+    year: "",
   },
 };
 
@@ -40,6 +42,8 @@ const histogramEl = document.getElementById("histogram");
 const pieGrid = document.getElementById("pieGrid");
 const trialList = document.getElementById("trialList");
 const trialListTitle = document.getElementById("trialListTitle");
+const countryFilterSelect = document.getElementById("countryFilterSelect");
+const yearFilterSelect = document.getElementById("yearFilterSelect");
 
 function svgEl(name, attrs = {}) {
   const el = document.createElementNS("http://www.w3.org/2000/svg", name);
@@ -78,6 +82,22 @@ function patientRecords() {
   return records;
 }
 
+function trialCountry(record) {
+  return (record.practicalityLocation || "").trim() || "Unknown country";
+}
+
+function trialYear(record) {
+  return (record.practicalityDate || "").trim() || "Unknown year";
+}
+
+function trialScopedRecords(records) {
+  return records.filter((record) => {
+    if (state.filters.country && trialCountry(record) !== state.filters.country) return false;
+    if (state.filters.year && trialYear(record) !== state.filters.year) return false;
+    return true;
+  });
+}
+
 function filteredRecords(records) {
   let visibleRecords = records;
   if (state.filters.score !== null) {
@@ -92,7 +112,12 @@ function filteredRecords(records) {
 }
 
 function hasActiveFilters() {
-  return state.filters.score !== null || Object.keys(state.filters.labels).length > 0;
+  return (
+    state.filters.score !== null
+    || Object.keys(state.filters.labels).length > 0
+    || Boolean(state.filters.country)
+    || Boolean(state.filters.year)
+  );
 }
 
 function toggleScoreFilter(score) {
@@ -117,6 +142,8 @@ function clearFilter() {
   state.filters = {
     score: null,
     labels: {},
+    country: "",
+    year: "",
   };
   render();
 }
@@ -133,6 +160,12 @@ function setScoreMode(mode) {
 
 function activeFilterText() {
   const parts = [];
+  if (state.filters.country) {
+    parts.push(`Country: ${state.filters.country}`);
+  }
+  if (state.filters.year) {
+    parts.push(`Year: ${state.filters.year}`);
+  }
   if (state.filters.score !== null) {
     parts.push(`${scoreModeLabels[state.scoreMode]} = ${state.filters.score}`);
   }
@@ -161,6 +194,61 @@ function renderSummary(records, visibleRecords) {
     patientMetric.textContent = `${patient.queryId}`;
     patientNoteText.textContent = patient.note || "No note text available.";
   }
+}
+
+function optionCounts(records, accessor) {
+  const counts = new Map();
+  records.forEach((record) => {
+    const value = accessor(record);
+    counts.set(value, (counts.get(value) || 0) + 1);
+  });
+  return counts;
+}
+
+function sortYears(values) {
+  return values.sort((a, b) => {
+    const aNum = Number(a);
+    const bNum = Number(b);
+    const aYear = Number.isFinite(aNum);
+    const bYear = Number.isFinite(bNum);
+    if (aYear && bYear) return bNum - aNum;
+    if (aYear) return -1;
+    if (bYear) return 1;
+    return a.localeCompare(b, undefined, { sensitivity: "base" });
+  });
+}
+
+function populateFilterSelect(select, label, currentValue, counts, values) {
+  select.replaceChildren();
+  const all = document.createElement("option");
+  all.value = "";
+  all.textContent = `All ${label}`;
+  select.appendChild(all);
+
+  values.forEach((value) => {
+    const option = document.createElement("option");
+    option.value = value;
+    option.textContent = `${value} (${counts.get(value)})`;
+    select.appendChild(option);
+  });
+  select.value = currentValue;
+}
+
+function renderTrialFilters(records) {
+  const countryCounts = optionCounts(records, trialCountry);
+  const yearCounts = optionCounts(records, trialYear);
+  if (state.filters.country && !countryCounts.has(state.filters.country)) {
+    state.filters.country = "";
+  }
+  if (state.filters.year && !yearCounts.has(state.filters.year)) {
+    state.filters.year = "";
+  }
+  const countries = [...countryCounts.keys()].sort((a, b) => (
+    a.localeCompare(b, undefined, { sensitivity: "base" })
+  ));
+  const years = sortYears([...yearCounts.keys()]);
+  populateFilterSelect(countryFilterSelect, "countries", state.filters.country, countryCounts, countries);
+  populateFilterSelect(yearFilterSelect, "years", state.filters.year, yearCounts, years);
 }
 
 function renderHistogram(records) {
@@ -437,7 +525,7 @@ function renderTrialList(records) {
     title.textContent = record.title || record.trialId;
     const meta = document.createElement("div");
     meta.className = "trial-meta";
-    meta.textContent = [record.dataset, record.practicalityLocation, record.practicalityDate]
+    meta.textContent = [record.practicalityLocation, record.practicalityDate]
       .filter(Boolean)
       .join(" · ");
     titleBox.append(title, meta);
@@ -449,9 +537,11 @@ function renderTrialList(records) {
 
 function render() {
   const records = patientRecords();
-  const visibleRecords = filteredRecords(records);
+  renderTrialFilters(records);
+  const scopedRecords = trialScopedRecords(records);
+  const visibleRecords = filteredRecords(scopedRecords);
   renderSummary(records, visibleRecords);
-  renderHistogram(records);
+  renderHistogram(scopedRecords);
   renderPies(visibleRecords);
   renderTrialList(visibleRecords);
 }
@@ -477,6 +567,14 @@ patientSelect.addEventListener("change", (event) => setPatient(event.target.valu
 scoreModeSelect.addEventListener("change", (event) => setScoreMode(event.target.value));
 clearFilterButton.addEventListener("click", clearFilter);
 selectionAllButton.addEventListener("click", clearFilter);
+countryFilterSelect.addEventListener("change", (event) => {
+  state.filters.country = event.target.value;
+  render();
+});
+yearFilterSelect.addEventListener("change", (event) => {
+  state.filters.year = event.target.value;
+  render();
+});
 
 fetch("data.json?v=patient-notes-20260520", { cache: "no-store" })
   .then((response) => {

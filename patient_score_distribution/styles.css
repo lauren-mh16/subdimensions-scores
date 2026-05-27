@@ -225,9 +225,34 @@ select:focus-visible,
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 14px;
   min-height: 46px;
   padding: 13px 16px 11px;
   border-bottom: 1px solid var(--line);
+}
+
+.trial-filters {
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.trial-filters label {
+  display: grid;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.trial-filters select {
+  width: 180px;
+  min-width: 0;
+  height: 32px;
+  font-size: 13px;
 }
 
 .histogram {
@@ -422,6 +447,15 @@ select:focus-visible,
     justify-content: flex-start;
   }
 
+  .section-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .trial-filters {
+    justify-content: flex-start;
+  }
+
   .summary-row {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -439,6 +473,9 @@ select:focus-visible,
 
   .controls,
   .controls label,
+  .trial-filters,
+  .trial-filters label,
+  .trial-filters select,
   select,
   button {
     width: 100%;
